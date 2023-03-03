@@ -1,7 +1,7 @@
 import * as web3 from "@solana/web3.js";
-import {transfer} from "@solana/spl-token";
+import {transfer, getOrCreateAssociatedTokenAccount} from "@solana/spl-token";
 import { secretKey } from "./secretKey.asset.js";
-import { tokenFilename, accountFilename } from "./filename.asset";
+import { tokenFilename, accountFilename } from "./filename.asset.js";
 import * as fs from "fs";
 
 const main = async () => {
@@ -12,7 +12,17 @@ const main = async () => {
     const mint = new web3.PublicKey(mintPubKey);
 
     const accountPubKey = fs.readFileSync(accountFilename).toString();
-    const account = new web3.PublicKey(accountPubKey);
+    const senderTokenAccountAddress = new web3.PublicKey(accountPubKey);
     
-    const recipient = account;
+    const recipient = web3.Keypair.generate();
+    const recipientAssociatedAccount = await getOrCreateAssociatedTokenAccount(connection, payer, mint, recipient.publicKey);
+    const recipientTokenAccountAddress = recipientAssociatedAccount.address;
+
+    const sender = payer;
+    const amount = 10;
+    
+    const signature = await transfer(connection, sender, senderTokenAccountAddress, recipientTokenAccountAddress, sender.publicKey, amount);
+    console.log(`Sent from ${sender.publicKey} to ${recipient.publicKey} ${amount} of token ${mint}: ${signature}`);
 }
+
+main().catch(console.error);
